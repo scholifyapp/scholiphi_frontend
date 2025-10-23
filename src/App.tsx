@@ -1,17 +1,19 @@
-import { useUserStore } from './store/useUserStore';
+import { BrowserRouter as Routes, Route, Navigate } from 'react-router-dom';
+import { AppPageLayout } from './components/AppPageLayout';
+import { Home } from './pages/Home';
+import { About } from './pages/About';
+import { NotFound } from './pages/NotFound';
 
-function App() {
-  const { name, setName } = useUserStore();
+export function App() {
   return (
-    <div className="p-6">
-      <p>Hello, {name || 'Anonymous'}!</p>
-      <button
-        className="bg-green-500 text-white p-2 rounded"
-        onClick={() => setName('Adarsh')}
-      >
-        Set Name
-      </button>
-    </div>
+      <AppPageLayout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/404" element={<NotFound />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
+        </Routes>
+      </AppPageLayout>
   );
 }
 
