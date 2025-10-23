@@ -16,7 +16,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     isLoading = false,
     children,
     disabled,
-    type = 'button',
     ...props
   }, ref) => {
     return (
