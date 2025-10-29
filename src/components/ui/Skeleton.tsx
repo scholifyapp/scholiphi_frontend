@@ -1,28 +1,13 @@
-import { cn } from '../../lib/utils';
+import { cn } from "@/lib/utils"
 
-interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
-  className?: string;
-  isLoading?: boolean;
-  children?: React.ReactNode;
-}
-
-const Skeleton = ({
-  className,
-  isLoading = true,
-  children,
-  ...props
-}: SkeletonProps) => {
-  if (!isLoading) return <>{children}</>;
-
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn(
-        'animate-pulse rounded-lg bg-neutral-300',
-        className
-      )}
+      data-slot="skeleton"
+      className={cn("bg-accent animate-pulse rounded-md", className)}
       {...props}
     />
-  );
-};
+  )
+}
 
-export { Skeleton };
+export { Skeleton }
