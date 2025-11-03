@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '@/lib/apiInstance';
+import { AxiosError } from 'axios';
 import { useUserStore } from '@/store/useUserStore';
 import {
   Form,
@@ -60,8 +61,9 @@ const LoginPage = () => {
 
       // Navigate to dashboard page on success
       navigate('/');
-    } catch (err: any) {
-      setError(err?.formattedMessage || 'An error occurred. Please try again.');
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }> & { formattedMessage?: string };
+      setError(axiosError?.formattedMessage || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

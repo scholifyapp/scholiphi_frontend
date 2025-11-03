@@ -7,6 +7,7 @@ import AuthPageLayout from '../components/AuthPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/apiInstance';
+import { AxiosError } from 'axios';
 import {
   Form,
   FormControl,
@@ -47,8 +48,9 @@ const RequestPasswordResetPage = () => {
         email: values.email,
       });
       setIsEmailSent(true);
-    } catch (err: any) {
-      setError(err?.formattedMessage || 'An error occurred. Please try again.');
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }> & { formattedMessage?: string };
+      setError(axiosError?.formattedMessage || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

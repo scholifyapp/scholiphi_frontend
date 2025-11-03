@@ -8,6 +8,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRegisterStore } from '../../../../store/useRegisterStore';
 import api from '@/lib/apiInstance';
+import { AxiosError } from 'axios';
 import {
   Form,
   FormControl,
@@ -81,8 +82,9 @@ const OtpStep = () => {
 
       setTimer(60);
       setCanResend(false);
-    } catch (err: any) {
-      setError(err?.formattedMessage || 'Failed to resend verification code. Please try again.');
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }> & { formattedMessage?: string };
+      setError(axiosError?.formattedMessage || 'Failed to resend verification code. Please try again.');
       console.error('Resend OTP error:', err);
     } finally {
       setIsResending(false);
@@ -112,8 +114,9 @@ const OtpStep = () => {
 
       // Navigate to success page
       navigate('/register/success');
-    } catch (err: any) {
-      setError(err?.formattedMessage || 'Verification failed. Please try again.');
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }> & { formattedMessage?: string };
+      setError(axiosError?.formattedMessage || 'Verification failed. Please try again.');
       console.error('OTP verification error:', err);
     } finally {
       setIsLoading(false);

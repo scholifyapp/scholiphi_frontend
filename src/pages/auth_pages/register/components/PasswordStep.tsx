@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '@/lib/apiInstance';
+import { AxiosError } from 'axios';
 import { useUserStore } from '@/store/useUserStore';
 import {
   Form,
@@ -138,8 +139,9 @@ const PasswordStep = () => {
 
       // Navigate to OTP step with email in URL
       navigate(`/register/otp?email=${encodeURIComponent(data.email)}`);
-    } catch (err: any) {
-      setError(err?.formattedMessage || 'An unexpected error occurred. Please try again.');
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message?: string }> & { formattedMessage?: string };
+      setError(axiosError?.formattedMessage || 'An unexpected error occurred. Please try again.');
       console.error('Signup error:', err);
     } finally {
       setIsLoading(false);

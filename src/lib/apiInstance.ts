@@ -2,6 +2,19 @@ import axios, { AxiosError, type AxiosRequestConfig, type AxiosResponse } from '
 
 const server_url = import.meta.env.VITE_SERVER_URL + '/v1';
 
+interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
+  _retry?: boolean;
+}
+
+interface ExtendedAxiosError extends AxiosError {
+  formattedMessage?: string;
+}
+
+interface ErrorResponseData {
+  message?: string;
+  errors?: Array<{ message?: string } | string>;
+}
+
 const api = axios.create({
   baseURL: server_url,
   withCredentials: true,
@@ -13,11 +26,11 @@ api.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as ExtendedAxiosRequestConfig | undefined;
 
     // Handle token refresh for 401 errors
-    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
-      (originalRequest as any)._retry = true;
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true;
         try {
           await api.post('/auth/refresh');
           return api(originalRequest as AxiosRequestConfig);
@@ -31,8 +44,8 @@ api.interceptors.response.use(
 
     if (!error.response) {
       errorMessage = 'Unable to connect to the server. Please check your connection and try again.';
-    } else {
-      const responseData = error.response.data as any;
+      } else {
+      const responseData = error.response.data as ErrorResponseData;
       if (error.response.status === 400 && responseData?.errors) {
         const validationErrors = responseData.errors;
         if (Array.isArray(validationErrors) && validationErrors.length > 0) {
@@ -53,9 +66,10 @@ api.interceptors.response.use(
     }
 
     // Attach formatted error message to error object
-    (error as any).formattedMessage = errorMessage;
+    const extendedError = error as ExtendedAxiosError;
+    extendedError.formattedMessage = errorMessage;
     
-    return Promise.reject(error);
+    return Promise.reject(extendedError);
   },
 );
 
