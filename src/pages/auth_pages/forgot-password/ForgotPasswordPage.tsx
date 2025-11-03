@@ -1,90 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import AuthPageLayout from '../components/AuthPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff } from 'lucide-react';
+import api from '@/lib/apiInstance';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const resetPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters long'),
+  confirmPassword: z
+    .string()
+    .min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 const ForgotPasswordPage = () => {
   const [searchParams] = useSearchParams();
-  const key = searchParams.get('key');
+  const token = searchParams.get('token');
   
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const verifyKey = async (_token: string) => {
-   console.log('Verifying key:', _token);
-    await new Promise(resolve => setTimeout(resolve, 500));
+  const form = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: '',
+      confirmPassword: '',
+    },
+  });
 
-    return true;
-  };
+  // Check if token is present in URL
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid reset link. Please request a new password reset.');
+    }
+  }, [token]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: ResetPasswordFormValues) => {
+    if (!token) {
+      setError('Invalid reset link. Please request a new password reset.');
+      return;
+    }
+
     setError('');
     setIsLoading(true);
 
-    // Validate inputs
-    if (!password || !confirmPassword) {
-      setError('Please fill in all fields');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate password length
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate password match
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      // Verify the key first
-      if (key) {
-        const isValid = await verifyKey(key);
-        
-        if (!isValid) {
-          setError('Invalid or expired reset link. Please request a new one.');
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        setError('Invalid reset link');
-        setIsLoading(false);
-        return;
-      }
-
-      // Mock API call to update password
-      await updatePassword(password, key);
+      await api.post('/auth/reset-password', {
+        token: token,
+        password: values.password,
+      });
       
       // Redirect to login page after successful password reset
       navigate('/login');
-    } catch (err) {
-      console.error(err);
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      setError(err?.formattedMessage || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const updatePassword = async (newPassword: string, resetKey: string) => {
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // For now, just log the data
-    console.log('Password update called with:', { newPassword, resetKey });
   };
 
   return (
@@ -101,67 +96,85 @@ const ForgotPasswordPage = () => {
         Enter your new password below to complete the reset process.
       </p>
       
-      <form className="mt-6" onSubmit={handleSubmit}>
-        <div className="mb-6 relative">
-          <label htmlFor="password">New Password</label>
-          <Input 
-            id="password"
-            type={showPassword ? "text" : "password"} 
-            placeholder="Enter new password" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+      <Form {...form}>
+        <form className="mt-6" onSubmit={form.handleSubmit(onSubmit)}>
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem className="mb-6">
+                <FormLabel>New Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="Enter new password" 
+                      {...field}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-gray-700"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormDescription className="text-sm text-gray-600 mt-1">
+                  • At least 8 characters
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-500 active:text-gray-700"
-          >
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </Button>
-          <span className="text-sm text-gray-600 mt-1 block">
-            • At least 8 characters
-          </span>
-        </div>
 
-        <div className="mb-6 relative">
-          <label htmlFor="confirm-password">Confirm Password</label>
-          <Input 
-            id="confirm-password"
-            type={showConfirmPassword ? "text" : "password"} 
-            placeholder="Re-enter your password" 
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem className="mb-6">
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input 
+                      type={showConfirmPassword ? "text" : "password"} 
+                      placeholder="Re-enter your password" 
+                      {...field}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-1 top-2/3 -translate-y-1/2 text-gray-500 active:text-gray-700"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-1 top-2/3 -translate-y-1/2 text-gray-500 active:text-gray-700"
-          >
-            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </Button>
-        </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        )}
-        
-        <Button 
-          type="submit" 
-          className='w-full mt-6' 
-          size='lg'
-          disabled={isLoading || !password || !confirmPassword}
-        >
-          {isLoading ? 'Updating Password...' : 'Update Password'}
-        </Button>
-      </form>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+          
+          <Button 
+            type="submit" 
+            className='w-full mt-6' 
+            size='lg'
+            disabled={isLoading}
+          >
+            {isLoading ? 'Updating Password...' : 'Update Password'}
+          </Button>
+        </form>
+      </Form>
     </AuthPageLayout>
   );
 };

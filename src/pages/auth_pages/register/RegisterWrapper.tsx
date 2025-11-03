@@ -10,8 +10,8 @@ const RegisterWrapper = () => {
     <Routes>
       <Route path="method" element={<MethodSelectionStep />} />
       <Route path="email" element={<EmailStep />} />
-      <Route path="otp" element={<OtpStep />} />
       <Route path="password" element={<PasswordStep />} />
+      <Route path="otp" element={<OtpStep />} />
       <Route path="success" element={<SuccessPage />} />
       <Route index element={<MethodSelectionStep />} />
     </Routes>

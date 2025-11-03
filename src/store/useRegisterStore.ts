@@ -4,8 +4,9 @@ type RegisterData = {
   email: string;
   otp: string;
   password: string;
-  name: string;
-  phone: string;
+  firstName: string;
+  lastName: string;
+  role: 'teacher' | 'student' | 'school' | 'admin';
 };
 
 type RegisterStore = {
@@ -14,13 +15,13 @@ type RegisterStore = {
   reset: () => void;
 };
 
-const initialState = {
+const initialState: RegisterData = {
   email: '',
   otp: '',
   password: '',
-  name: '',
-  phone: '',
-  method: null,
+  firstName: '',
+  lastName: '',
+  role: 'student',
 };
 
 export const useRegisterStore = create<RegisterStore>((set) => ({

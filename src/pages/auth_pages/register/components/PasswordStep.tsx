@@ -1,3 +1,6 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import AuthPageLayout from '../../components/AuthPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -5,6 +8,16 @@ import { useRegisterStore } from '../../../../store/useRegisterStore';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import api from '@/lib/apiInstance';
+import { useUserStore } from '@/store/useUserStore';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 
 interface PasswordRequirements {
   minLength: boolean
@@ -18,44 +31,43 @@ interface PasswordStrength {
   color: string
 }
 
+const passwordSchema = z.object({
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/\d/, 'Password must contain at least one number')
+    .regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/, 'Password must contain at least one symbol'),
+});
+
+type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 const PasswordStep = () => {
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { data, updateData, reset } = useRegisterStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const { data, updateData } = useRegisterStore();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-    
-    try {
-      updateData({ password });
-      console.log('Registration data:', { ...data, password });
-      
-      reset();
-      navigate('/register/success');
-      
-    } catch (err) {
-      console.error('Registration error:', err);
-    }
-  };
+  const form = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      password: '',
+    },
+  });
 
-    const [requirements, setRequirements] = useState<PasswordRequirements>({
+  const password = form.watch('password');
+
+  const [requirements, setRequirements] = useState<PasswordRequirements>({
     minLength: false,
     hasNumber: false,
     hasSymbol: false,
-  })
+  });
   const [strength, setStrength] = useState<PasswordStrength>({
     score: 0,
     level: "weak",
     color: "bg-red-500",
-  })
+  });
 
   useEffect(() => {
     const minLength = password.length >= 8
@@ -94,15 +106,50 @@ const PasswordStep = () => {
     setStrength({ score, level, color })
   }, [password])
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onSubmit = async (values: PasswordFormValues) => {
     setError('');
-    setPassword(e.target.value)
-  }
+    
+    // Validate that all required data is available
+    if (!data.email || !data.firstName || !data.lastName) {
+      setError('Missing registration data. Please start over.');
+      navigate('/register/email');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Update store with password
+      updateData({ password: values.password });
+
+      // Call signup API (backend will automatically send OTP)
+      const signupResponse = await api.post('/auth/signup', {
+        email: data.email,
+        password: values.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role || 'student',
+      });
+
+      // Store user data (account is created but email not verified yet)
+      if (signupResponse.data?.user) {
+        useUserStore.getState().setUser(signupResponse.data.user);
+      }
+
+      // Navigate to OTP step with email in URL
+      navigate(`/register/otp?email=${encodeURIComponent(data.email)}`);
+    } catch (err: any) {
+      setError(err?.formattedMessage || 'An unexpected error occurred. Please try again.');
+      console.error('Signup error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <AuthPageLayout 
       backButton={true}
-      onBack={() => navigate('/register/otp')}
+      onBack={() => navigate('/register/email')}
       header={<h1>Create a password</h1>}
       footer={
         <p>By using Scholifi, you agree to the{" "}
@@ -117,29 +164,42 @@ const PasswordStep = () => {
       </p>
       }
     >
-     <form onSubmit={handleSubmit}>   
-     <div className="mb-6 mt-4">
-          <label className="block text-sm font-medium text-gray-900 mb-2">Password</label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="Enter password"
-            />
-            {error && <p className="text-red-500 mt-2">{error}</p>}
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-1 top-2 text-gray-500 active:text-gray-700"
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </Button>
-          </div>
-        </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>   
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem className="mb-6 mt-4">
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      {...field}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-1 top-2 text-gray-500 active:text-gray-700"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
         {password && (
           <div className="mb-6">
@@ -211,14 +271,16 @@ const PasswordStep = () => {
           </div>
         </div>
         
-        <Button 
-          type="submit" 
-          className='w-full mt-8' 
-          size='lg'
-        >
-          Complete Registration
-        </Button>
-      </form>
+          <Button 
+            type="submit" 
+            className='w-full mt-8' 
+            size='lg'
+            disabled={isLoading}
+          >
+            {isLoading ? 'Creating account...' : 'Complete Registration'}
+          </Button>
+        </form>
+      </Form>
     </AuthPageLayout>
   );
 };

@@ -1,11 +1,22 @@
 import { create } from "zustand";
 
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+}
+
 interface UserState {
-  name: string;
-  setName: (name: string) => void;
+  user: User | null;
+  setUser: (user: User) => void;
+  clearUser: () => void;
 }
 
 export const useUserStore = create<UserState>((set) => ({
-  name: "",
-  setName: (name) => set({ name }),
+  user: null,
+  setUser: (user) => set({ user }),
+  clearUser: () => set({ user: null }),
 }));

@@ -1,49 +1,54 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import AuthPageLayout from '../components/AuthPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import api from '@/lib/apiInstance';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const requestResetSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address'),
+});
+
+type RequestResetFormValues = z.infer<typeof requestResetSchema>;
 
 const RequestPasswordResetPage = () => {
-  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const navigate = useNavigate();
 
-  const sendResetLink = async (userEmail: string) => {
-    console.log('Sending reset link to:', userEmail);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return ;
-  };
+  const form = useForm<RequestResetFormValues>({
+    resolver: zodResolver(requestResetSchema),
+    defaultValues: {
+      email: '',
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: RequestResetFormValues) => {
     setError('');
     setIsLoading(true);
 
-    // Validate email
-    if (!email) {
-      setError('Please enter your email address');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      await sendResetLink(email);
+      await api.post('/auth/forgot-password', {
+        email: values.email,
+      });
       setIsEmailSent(true);
-    } catch (err) {
-      console.error(err);
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      setError(err?.formattedMessage || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +67,7 @@ const RequestPasswordResetPage = () => {
         <div className="mt-10">
           <h1 className='mb-4'>Check Your Email</h1>
           <p className="py-2 text-gray-600">
-            We've sent a password reset link to <strong>{email}</strong>
+            We've sent a password reset link to <strong>{form.getValues('email')}</strong>
           </p>
           
           <div className="mt-8">
@@ -98,34 +103,42 @@ const RequestPasswordResetPage = () => {
         Enter your email address and we'll send you a link to reset your password.
       </p>
       
-      <form className="mt-6" onSubmit={handleSubmit}>
-        <div className="mb-6">
-          <label htmlFor="email">Email Address</label>
-          <Input 
-            id="email"
-            type="email" 
-            placeholder="Enter your email address" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+      <Form {...form}>
+        <form className="mt-6" onSubmit={form.handleSubmit(onSubmit)}>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem className="mb-6">
+                <FormLabel>Email Address</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="email" 
+                    placeholder="Enter your email address" 
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        )}
-        
-        <Button 
-          type="submit" 
-          className='w-full mt-6' 
-          size='lg'
-          disabled={isLoading || !email}
-        >
-          {isLoading ? 'Sending...' : 'Send Reset Link'}
-        </Button>
-      </form>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+          
+          <Button 
+            type="submit" 
+            className='w-full mt-6' 
+            size='lg'
+            disabled={isLoading}
+          >
+            {isLoading ? 'Sending...' : 'Send Reset Link'}
+          </Button>
+        </form>
+      </Form>
 
       <p className="text-center mt-4 text-sm text-gray-600">
         Remember your password?{' '}
